@@ -70,4 +70,55 @@ class AuthController extends Controller
 
         return $validator;
     }
+
+    public function login(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "Error login user",
+                    "error" => $validator->errors()
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            $user = User::where('email', $request->input('email'))->first();
+
+            if (!$user || !Hash::check($request->input('password'), $user->password)) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "Email or password are invalid"
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            $token = $user->createToken('apiToken')->plainTextToken;
+
+            return response()->json([
+                "success" => true,
+                "message" => "User Logged",
+                "token" => $token,
+                "data" => $user
+            ]);
+        } catch (\Throwable $th) {
+            Log::error($th->getMessage());
+
+            if ($th->getMessage() === 'Email or password are invalid') {
+                return response()->json([
+                    "success" => false,
+                    "message" => "Email or password are invalid"
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            return response()->json([
+                "success" => false,
+                "message" => "Error login user"
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
 }
